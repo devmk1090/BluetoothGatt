@@ -12,6 +12,9 @@ import androidx.core.app.NotificationCompat
 import com.devk.bluetoothgatt.response.DeviceResponse
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -35,6 +38,9 @@ class BleGattService: Service() {
         const val RSSI = -40
     }
 
+    private var coroutineScope = CoroutineScope(Dispatchers.IO)
+    private var isRunning = false
+
     private var devices: List<DeviceResponse>? = null
     private var devicesName: ArrayList<String>? = null
 
@@ -43,6 +49,7 @@ class BleGattService: Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             BLE_GATT_START -> {
+                isRunning = true
                 devices = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableArrayListExtra("name", DeviceResponse::class.java)
                 } else {
@@ -53,8 +60,18 @@ class BleGattService: Service() {
                     setNotification()
                 }
             }
+            BLE_GATT_STOP -> {
+                isRunning = false
+                stopService()
+            }
         }
         return START_STICKY
+    }
+
+    private fun stopService() {
+        coroutineScope.cancel()
+        stopForeground(true)
+        stopSelf()
     }
 
     private fun setNotification() {
