@@ -4,6 +4,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -15,6 +17,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -41,6 +47,10 @@ class BleGattService: Service() {
     private var coroutineScope = CoroutineScope(Dispatchers.IO)
     private var isRunning = false
 
+    private var bleManager: BluetoothManager? = null
+    private val bleAdapter: BluetoothAdapter?
+        get() = bleManager?.adapter
+
     private var devices: List<DeviceResponse>? = null
     private var devicesName: ArrayList<String>? = null
 
@@ -58,6 +68,7 @@ class BleGattService: Service() {
                 if (!devices.isNullOrEmpty()) {
                     devicesName = devices?.map { it.name } as ArrayList<String>
                     setNotification()
+                    startBle()
                 }
             }
             BLE_GATT_STOP -> {
@@ -66,6 +77,25 @@ class BleGattService: Service() {
             }
         }
         return START_STICKY
+    }
+
+    private fun startBle() {
+        bleManager = context.getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        if (bleAdapter == null || !bleAdapter?.isEnabled!!) {
+            return
+        }
+
+        if (isRunning) {
+            coroutineScope.launch {
+                val delayTime = TimeUnit.MINUTES.toMillis(5)
+                while (isActive) {
+                    delay(delayTime)
+                    stopScan()
+                    delay(1000)
+                    startScan()
+                }
+            }
+        }
     }
 
     private fun stopService() {
