@@ -6,10 +6,15 @@ import android.app.PendingIntent
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.ParcelUuid
 import androidx.core.app.NotificationCompat
 import com.devk.bluetoothgatt.response.DeviceResponse
 import dagger.hilt.android.AndroidEntryPoint
@@ -20,6 +25,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -46,10 +52,12 @@ class BleGattService: Service() {
 
     private var coroutineScope = CoroutineScope(Dispatchers.IO)
     private var isRunning = false
+    private var isBleEnabled = false
 
     private var bleManager: BluetoothManager? = null
     private val bleAdapter: BluetoothAdapter?
         get() = bleManager?.adapter
+    private var bleLeScanner: BluetoothLeScanner? = null
 
     private var devices: List<DeviceResponse>? = null
     private var devicesName: ArrayList<String>? = null
@@ -96,6 +104,30 @@ class BleGattService: Service() {
                 }
             }
         }
+    }
+
+    private fun startScan() {
+        isBleEnabled = true
+        bleLeScanner = bleAdapter?.bluetoothLeScanner
+
+        val filters: MutableList<ScanFilter> = ArrayList()
+        val scanFilter: ScanFilter = ScanFilter.Builder()
+            .setServiceUuid(ParcelUuid(UUID.fromString(SERVICE_UUID)))
+            .build()
+        filters.add(scanFilter)
+
+        val scanSettings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+            .build()
+
+        bleLeScanner?.startScan(filters, scanSettings, bleScanCallback)
+    }
+
+    /**
+     * Scan Callback
+     */
+    private val bleScanCallback = object : ScanCallback() {
+
     }
 
     private fun stopService() {
