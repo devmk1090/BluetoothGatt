@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
@@ -61,6 +62,7 @@ class BleGattService: Service() {
 
     private var devices: List<DeviceResponse>? = null
     private var devicesName: ArrayList<String>? = null
+
 
     private var notification: NotificationCompat.Builder? = null
 
@@ -127,7 +129,34 @@ class BleGattService: Service() {
      * Scan Callback
      */
     private val bleScanCallback = object : ScanCallback() {
+        override fun onScanResult(callbackType: Int, result: ScanResult?) {
+            result?.let {
+                if (it.rssi >= RSSI) {
+                    addScanResults(it)
+                } else { }
+            }
+        }
 
+        override fun onBatchScanResults(results: MutableList<ScanResult>?) {
+            for (result in results!!) {
+                if (result.rssi >= RSSI) {
+                    addScanResults(result)
+                }
+            }
+        }
+
+        override fun onScanFailed(errorCode: Int) {
+            when (errorCode) {
+                SCAN_FAILED_ALREADY_STARTED -> disconnectBle()
+                SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> disconnectBle()
+            }
+        }
+    }
+
+    private fun addScanResults(result: ScanResult) {
+        if (devicesName?.contains(result.device.name) == true) {
+            connectGatt(result.device)
+        }
     }
 
     private fun stopService() {
