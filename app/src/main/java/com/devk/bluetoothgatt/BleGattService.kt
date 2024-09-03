@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
@@ -62,6 +63,9 @@ class BleGattService: Service() {
 
     private var devices: List<DeviceResponse>? = null
     private var devicesName: ArrayList<String>? = null
+
+    private val connectDeviceList = mutableSetOf<String>()
+    private var connectBleList = mutableSetOf<BluetoothGatt>()
 
 
     private var notification: NotificationCompat.Builder? = null
@@ -156,6 +160,26 @@ class BleGattService: Service() {
     private fun addScanResults(result: ScanResult) {
         if (devicesName?.contains(result.device.name) == true) {
             connectGatt(result.device)
+        }
+    }
+
+    //연결된 특정 디바이스 하나만 Disconnect
+    private fun disconnectBleEach(gatt: BluetoothGatt) {
+        gatt.disconnect()
+        gatt.close()
+        connectBleList.remove(gatt)
+        connectDeviceList.remove(gatt.device.name)
+    }
+
+    //연결된 모든 디바이스 Disconnect
+    private fun disconnectBleAll() {
+        coroutineScope.launch {
+            connectBleList.forEach {
+                it.disconnect()
+                it.close()
+            }
+            connectBleList.clear()
+            delay(100)
         }
     }
 
