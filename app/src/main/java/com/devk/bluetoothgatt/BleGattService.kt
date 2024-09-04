@@ -151,15 +151,31 @@ class BleGattService: Service() {
 
         override fun onScanFailed(errorCode: Int) {
             when (errorCode) {
-                SCAN_FAILED_ALREADY_STARTED -> disconnectBle()
-                SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> disconnectBle()
+                SCAN_FAILED_ALREADY_STARTED -> disconnectScanAndBle()
+                SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> disconnectScanAndBle()
             }
+        }
+    }
+
+    private fun stopScan() {
+        if (bleLeScanner != null) {
+            bleLeScanner?.stopScan(bleScanCallback)
+            bleLeScanner == null
         }
     }
 
     private fun addScanResults(result: ScanResult) {
         if (devicesName?.contains(result.device.name) == true) {
             connectGatt(result.device)
+        }
+    }
+
+    private fun disconnectScanAndBle() {
+        stopScan()
+        coroutineScope.launch {
+            delay(1000)
+            disconnectBleAll()
+            startBle()
         }
     }
 
