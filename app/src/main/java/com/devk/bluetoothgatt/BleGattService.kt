@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
@@ -153,20 +154,29 @@ class BleGattService: Service() {
             when (errorCode) {
                 SCAN_FAILED_ALREADY_STARTED -> disconnectScanAndBle()
                 SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> disconnectScanAndBle()
+                else -> {}
             }
-        }
-    }
-
-    private fun stopScan() {
-        if (bleLeScanner != null) {
-            bleLeScanner?.stopScan(bleScanCallback)
-            bleLeScanner == null
         }
     }
 
     private fun addScanResults(result: ScanResult) {
         if (devicesName?.contains(result.device.name) == true) {
             connectGatt(result.device)
+        }
+    }
+
+    /**
+     * gattClientCallback
+     */
+    private val bleGattCallback: BluetoothGattCallback = object : BluetoothGattCallback() {
+
+    }
+
+
+    private fun stopScan() {
+        if (bleLeScanner != null) {
+            bleLeScanner?.stopScan(bleScanCallback)
+            bleLeScanner == null
         }
     }
 
@@ -200,6 +210,9 @@ class BleGattService: Service() {
     }
 
     private fun stopService() {
+        isRunning = false
+        stopScan()
+        disconnectBleAll()
         coroutineScope.cancel()
         stopForeground(true)
         stopSelf()
